@@ -154,6 +154,22 @@ This script uses the Anthropic SDK to inspect recent git changes and update the 
 
 To disable a hook temporarily, comment it out in `.claude/settings.json`.
 
+### Pre-push — Security Agent
+Installed as a git hook via `npm run prepare` (runs automatically after `npm install`).
+Before every `git push`, runs:
+```
+node .claude/scripts/security-check.js
+```
+Uses the Claude API (`claude-opus-4-8`) to scan changed files for:
+- Hardcoded secrets, API keys, tokens, or credentials
+- Sensitive personal data
+- Common web vulnerabilities (XSS, SQL injection, CSRF, open redirects)
+- Supabase RLS being disabled or bypassed
+- Auth checks being skipped
+
+If issues are found the push is **blocked** and a report is printed. Fix the issues and push again.
+Requires `ANTHROPIC_API_KEY` in the environment. If the API is unavailable, the check is skipped with a warning (non-blocking).
+
 ## Supabase Setup (one-time)
 1. Create a project at supabase.com
 2. Run `supabase/migrations/001_initial.sql` in the SQL editor
