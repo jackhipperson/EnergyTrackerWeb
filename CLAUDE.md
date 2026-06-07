@@ -154,6 +154,21 @@ This script uses the Anthropic SDK to inspect recent git changes and update the 
 
 To disable a hook temporarily, comment it out in `.claude/settings.json`.
 
+### Pre-push — Security Agent
+Installed as a git hook via `npm run prepare` (runs automatically after `npm install`).
+Before every `git push`, runs:
+```
+node .claude/scripts/security-check.js
+```
+Pattern-based scanner (no API key needed) checks for:
+- Hardcoded secrets, API keys, tokens, or credentials
+- Forbidden files (.env, .pem, private keys) being committed
+- Common web vulnerabilities (XSS via dangerouslySetInnerHTML, eval, SQL injection)
+- Supabase RLS being disabled in migrations
+- Auth bypass comments
+
+If issues are found the push is **blocked** and a report printed. Fix and push again.
+
 ## Supabase Setup (one-time)
 1. Create a project at supabase.com
 2. Run `supabase/migrations/001_initial.sql` in the SQL editor
