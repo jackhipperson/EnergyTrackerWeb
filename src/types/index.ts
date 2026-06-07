@@ -26,4 +26,15 @@ export interface MonthlyPeriod {
   month: string   // e.g. "2024-11"
   kwh: number
   costGbp: number
+  estimated?: boolean  // true when extrapolated from a partial calendar month
+}
+
+export interface CombinedMonth {
+  month: string       // "YYYY-MM"
+  label: string       // "Nov 24"
+  elecKwh: number
+  elecCostGbp: number
+  gasKwh: number
+  gasCostGbp: number
+  estimated?: boolean  // true when either fuel is extrapolated from a partial month
 }

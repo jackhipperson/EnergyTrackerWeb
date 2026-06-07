@@ -96,6 +96,7 @@ export function ReadingsPanel({ readings, tariffs }: Props) {
         <ReadingForm
           key={`${active}-${editingReading?.id ?? 'new'}`}
           fuelType={active}
+          readings={filtered}
           reading={editingReading ?? undefined}
           onSaved={handleSaved}
           onCancel={handleCancelEdit}
@@ -108,6 +109,7 @@ export function ReadingsPanel({ readings, tariffs }: Props) {
         <ReadingsList
           readings={filtered}
           tariffs={tariffs.filter(t => t.fuel_type === active)}
+          fuelType={active}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
