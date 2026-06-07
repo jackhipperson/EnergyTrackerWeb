@@ -27,3 +27,12 @@ export interface MonthlyPeriod {
   kwh: number
   costGbp: number
 }
+
+export interface CombinedMonth {
+  month: string       // "YYYY-MM"
+  label: string       // "Nov 24"
+  elecKwh: number
+  elecCostGbp: number
+  gasKwh: number
+  gasCostGbp: number
+}

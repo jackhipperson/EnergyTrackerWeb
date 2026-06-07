@@ -12,13 +12,10 @@ const ROOT = path.resolve(__dirname, '..', '..')
 const README_PATH = path.join(ROOT, 'README.md')
 const CLAUDE_MD_PATH = path.join(ROOT, 'CLAUDE.md')
 
-function getRecentChanges() {
+function getStagedFiles() {
   try {
     const staged = execSync('git diff --cached --name-only', { encoding: 'utf8', cwd: ROOT }).trim()
-    const unstaged = execSync('git diff --name-only', { encoding: 'utf8', cwd: ROOT }).trim()
-    const untracked = execSync('git ls-files --others --exclude-standard', { encoding: 'utf8', cwd: ROOT }).trim()
-    const all = [staged, unstaged, untracked].join('\n').split('\n').filter(Boolean)
-    return [...new Set(all)]
+    return staged.split('\n').filter(Boolean)
   } catch {
     return []
   }
@@ -29,7 +26,7 @@ function shouldUpdate(changedFiles) {
 }
 
 async function updateReadme() {
-  const changedFiles = getRecentChanges()
+  const changedFiles = getStagedFiles()
   if (!shouldUpdate(changedFiles)) return
 
   const readme = existsSync(README_PATH) ? readFileSync(README_PATH, 'utf8') : ''
@@ -54,7 +51,8 @@ Return the COMPLETE updated README.md — not just the changed sections. Be conc
   const updated = response.content.find(b => b.type === 'text')?.text
   if (updated && updated !== readme) {
     writeFileSync(README_PATH, updated, 'utf8')
-    console.log('[update-readme] README.md updated')
+    execSync('git add README.md', { cwd: ROOT })
+    console.log('[update-readme] README.md updated and staged')
   }
 }
 
