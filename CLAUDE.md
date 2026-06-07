@@ -160,15 +160,14 @@ Before every `git push`, runs:
 ```
 node .claude/scripts/security-check.js
 ```
-Uses the Claude API (`claude-opus-4-8`) to scan changed files for:
+Pattern-based scanner (no API key needed) checks for:
 - Hardcoded secrets, API keys, tokens, or credentials
-- Sensitive personal data
-- Common web vulnerabilities (XSS, SQL injection, CSRF, open redirects)
-- Supabase RLS being disabled or bypassed
-- Auth checks being skipped
+- Forbidden files (.env, .pem, private keys) being committed
+- Common web vulnerabilities (XSS via dangerouslySetInnerHTML, eval, SQL injection)
+- Supabase RLS being disabled in migrations
+- Auth bypass comments
 
-If issues are found the push is **blocked** and a report is printed. Fix the issues and push again.
-Requires `ANTHROPIC_API_KEY` in the environment. If the API is unavailable, the check is skipped with a warning (non-blocking).
+If issues are found the push is **blocked** and a report printed. Fix and push again.
 
 ## Supabase Setup (one-time)
 1. Create a project at supabase.com
