@@ -1,8 +1,10 @@
-import type { MeterReading, Tariff } from '@/types'
+import type { MeterReading, Tariff, FuelType } from '@/types'
+import { GAS_M3_TO_KWH } from '@/lib/calculations'
 
 interface Props {
   readings: MeterReading[]
   tariffs: Tariff[]
+  fuelType: FuelType
   onEdit: (reading: MeterReading) => void
   onDelete: (reading: MeterReading) => void
 }
@@ -35,32 +37,34 @@ type EnrichedReading = MeterReading & {
   avgCostPerDay: number | null
 }
 
-function enrichWithCosts(readings: MeterReading[], tariffs: Tariff[]): EnrichedReading[] {
+function enrichWithCosts(readings: MeterReading[], tariffs: Tariff[], fuelType: FuelType): EnrichedReading[] {
   const sorted = [...readings].sort((a, b) => a.reading_date.localeCompare(b.reading_date))
   return sorted.map((r, i) => {
     if (i === 0) return { ...r, deltaKwh: null, days: null, avgKwhPerDay: null, costGbp: null, avgCostPerDay: null }
 
     const prev = sorted[i - 1]
-    const deltaKwh = r.reading_kwh - prev.reading_kwh
+    const deltaRaw = r.reading_kwh - prev.reading_kwh  // m³ for gas, kWh for electricity
     const days = daysBetween(prev.reading_date, r.reading_date)
 
-    if (deltaKwh <= 0 || days <= 0) {
-      return { ...r, deltaKwh, days, avgKwhPerDay: null, costGbp: null, avgCostPerDay: null }
+    if (deltaRaw <= 0 || days <= 0) {
+      return { ...r, deltaKwh: deltaRaw, days, avgKwhPerDay: null, costGbp: null, avgCostPerDay: null }
     }
 
     const midDate = new Date(
       (new Date(prev.reading_date).getTime() + new Date(r.reading_date).getTime()) / 2
     ).toISOString().slice(0, 10)
 
+    const deltaKwh = fuelType === 'gas' ? deltaRaw * GAS_M3_TO_KWH : deltaRaw
+
     const tariff = findTariff(tariffs, midDate)
     if (!tariff) {
-      return { ...r, deltaKwh, days, avgKwhPerDay: deltaKwh / days, costGbp: null, avgCostPerDay: null }
+      return { ...r, deltaKwh: deltaRaw, days, avgKwhPerDay: deltaKwh / days, costGbp: null, avgCostPerDay: null }
     }
 
     const costGbp = (deltaKwh * tariff.unit_rate + days * tariff.standing_charge) / 100
     return {
       ...r,
-      deltaKwh,
+      deltaKwh: deltaRaw,   // raw m³ or kWh as entered
       days,
       avgKwhPerDay: deltaKwh / days,
       costGbp,
@@ -69,12 +73,15 @@ function enrichWithCosts(readings: MeterReading[], tariffs: Tariff[]): EnrichedR
   })
 }
 
-export function ReadingsList({ readings, tariffs, onEdit, onDelete }: Props) {
+export function ReadingsList({ readings, tariffs, fuelType, onEdit, onDelete }: Props) {
   if (readings.length === 0) {
     return <p className="text-sm text-gray-400 py-4 text-center">No readings added yet.</p>
   }
 
-  const rows = enrichWithCosts(readings, tariffs).reverse() // newest first
+  const isGas = fuelType === 'gas'
+  const unit = isGas ? 'm³' : 'kWh'
+  const dp = isGas ? 3 : 2
+  const rows = enrichWithCosts(readings, tariffs, fuelType).reverse() // newest first
 
   return (
     <div className="overflow-x-auto -mx-4 px-4">
@@ -82,8 +89,8 @@ export function ReadingsList({ readings, tariffs, onEdit, onDelete }: Props) {
         <thead>
           <tr className="border-b border-gray-200 text-left">
             <th className="pb-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Date</th>
-            <th className="pb-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Reading (kWh)</th>
-            <th className="pb-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Used since last (kWh)</th>
+            <th className="pb-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Reading ({unit})</th>
+            <th className="pb-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Used since last ({unit})</th>
             <th className="pb-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">kWh/day</th>
             <th className="pb-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">£/day</th>
             <th className="pb-2"></th>
@@ -94,14 +101,14 @@ export function ReadingsList({ readings, tariffs, onEdit, onDelete }: Props) {
             <tr key={r.id}>
               <td className="py-2 pr-4 text-gray-700 whitespace-nowrap">{formatDate(r.reading_date)}</td>
               <td className="py-2 pr-4 text-gray-700 tabular-nums whitespace-nowrap">
-                {r.reading_kwh.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                {r.reading_kwh.toLocaleString('en-GB', { minimumFractionDigits: dp, maximumFractionDigits: dp })}
               </td>
               <td className="py-2 pr-4 tabular-nums whitespace-nowrap">
                 {r.deltaKwh === null ? (
                   <span className="text-gray-400">—</span>
                 ) : (
                   <span className={r.deltaKwh < 0 ? 'text-red-500' : 'text-gray-700'}>
-                    {r.deltaKwh.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                    {r.deltaKwh.toLocaleString('en-GB', { minimumFractionDigits: dp, maximumFractionDigits: dp })}
                   </span>
                 )}
               </td>

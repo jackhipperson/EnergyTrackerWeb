@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildMonthlyBreakdown } from '../calculations'
+import { buildMonthlyBreakdown, GAS_M3_TO_KWH } from '../calculations'
 import type { MeterReading, Tariff } from '@/types'
 
 function makeReading(overrides: Partial<MeterReading> & { reading_date: string; reading_kwh: number }): MeterReading {
@@ -33,9 +33,8 @@ describe('buildMonthlyBreakdown', () => {
   })
 
   it('calculates usage and cost correctly for a single period', () => {
-    // 100 kWh used over 31 days in January
-    // unit_rate = 30p/kWh, standing_charge = 60p/day
-    // cost = (100 * 30 + 31 * 60) / 100 = (3000 + 1860) / 100 = £48.60
+    // 100 kWh over 31 days (Jan 1 → Feb 1). Period is fully within January.
+    // cost = (100 × 30 + 31 × 60) / 100 = (3000 + 1860) / 100 = £48.60
     const readings = [
       makeReading({ reading_date: '2024-01-01', reading_kwh: 0 }),
       makeReading({ reading_date: '2024-02-01', reading_kwh: 100 }),
@@ -45,12 +44,73 @@ describe('buildMonthlyBreakdown', () => {
     const result = buildMonthlyBreakdown(readings, tariffs, 'electricity')
 
     expect(result).toHaveLength(1)
-    expect(result[0].month).toBe('2024-02')
+    expect(result[0].month).toBe('2024-01')
     expect(result[0].kwh).toBeCloseTo(100)
     expect(result[0].costGbp).toBeCloseTo(48.6)
+    expect(result[0].estimated).toBeFalsy()
   })
 
-  it('groups multiple readings into the same month', () => {
+  it('pro-rates a period spanning two calendar months', () => {
+    // Dec 16 → Feb 1 (47 days total), 47 kWh at 1 kWh/day, no standing charge.
+    // Pro-rating: Dec gets 16 days (Dec 16→Jan 1), Jan gets 31 days (Jan 1→Feb 1).
+    const readings = [
+      makeReading({ reading_date: '2024-12-16', reading_kwh: 0 }),
+      makeReading({ reading_date: '2025-02-01', reading_kwh: 47 }),
+    ]
+    const tariffs = [makeTariff({ unit_rate: 100, standing_charge: 0, valid_from: '2024-01-01' })]
+
+    const result = buildMonthlyBreakdown(readings, tariffs, 'electricity')
+
+    const dec = result.find(r => r.month === '2024-12')
+    const jan = result.find(r => r.month === '2025-01')
+
+    expect(dec).toBeDefined()
+    expect(jan).toBeDefined()
+    expect(dec!.kwh).toBeCloseTo(16)
+    expect(jan!.kwh).toBeCloseTo(31)
+    // Total kWh preserved across months
+    expect(dec!.kwh + jan!.kwh).toBeCloseTo(47)
+    // Last reading is Feb 1 so neither month is partial
+    expect(dec!.estimated).toBeFalsy()
+    expect(jan!.estimated).toBeFalsy()
+  })
+
+  it('marks the last month as estimated when the latest reading is mid-month', () => {
+    // Jan 1 → Jan 16 (15 days): 30 kWh at 2 kWh/day.
+    // Jan only has 15 days of data, but January has 31 days → scale = 31/15.
+    // Extrapolated kWh = 30 × (31/15) = 62.
+    const readings = [
+      makeReading({ reading_date: '2024-01-01', reading_kwh: 0 }),
+      makeReading({ reading_date: '2024-01-16', reading_kwh: 30 }),
+    ]
+    const tariffs = [makeTariff({ unit_rate: 100, standing_charge: 0, valid_from: '2024-01-01' })]
+
+    const result = buildMonthlyBreakdown(readings, tariffs, 'electricity')
+
+    expect(result).toHaveLength(1)
+    expect(result[0].month).toBe('2024-01')
+    expect(result[0].estimated).toBe(true)
+    expect(result[0].kwh).toBeCloseTo(30 * (31 / 15))
+  })
+
+  it('does not mark a completed month as estimated when reading falls on month boundary', () => {
+    // Last reading on Feb 1 — Jan data is complete (Jan 1→Feb 1 = 31 days).
+    const readings = [
+      makeReading({ reading_date: '2024-01-01', reading_kwh: 0 }),
+      makeReading({ reading_date: '2024-02-01', reading_kwh: 100 }),
+    ]
+    const tariffs = [makeTariff({ unit_rate: 30, standing_charge: 0, valid_from: '2024-01-01' })]
+
+    const result = buildMonthlyBreakdown(readings, tariffs, 'electricity')
+
+    expect(result).toHaveLength(1)
+    expect(result[0].estimated).toBeFalsy()
+  })
+
+  it('groups multiple readings correctly with pro-rating', () => {
+    // Jan 1→Jan 16 (15 days, 50 kWh) + Jan 16→Feb 1 (16 days, 50 kWh).
+    // Both periods fall entirely within January; no cross-month split needed.
+    // Total January = 100 kWh. Last reading Feb 1 → not partial.
     const readings = [
       makeReading({ reading_date: '2024-01-01', reading_kwh: 0 }),
       makeReading({ reading_date: '2024-01-16', reading_kwh: 50 }),
@@ -60,9 +120,7 @@ describe('buildMonthlyBreakdown', () => {
 
     const result = buildMonthlyBreakdown(readings, tariffs, 'electricity')
 
-    // Both pairs end in Jan or Feb — first pair ends 2024-01-16 (Jan), second ends 2024-02-01 (Feb)
     expect(result.some(r => r.month === '2024-01')).toBe(true)
-    expect(result.some(r => r.month === '2024-02')).toBe(true)
     const total = result.reduce((sum, r) => sum + r.kwh, 0)
     expect(total).toBeCloseTo(100)
   })
@@ -94,7 +152,7 @@ describe('buildMonthlyBreakdown', () => {
   it('skips periods with zero or negative usage', () => {
     const readings = [
       makeReading({ reading_date: '2024-01-01', reading_kwh: 100 }),
-      makeReading({ reading_date: '2024-02-01', reading_kwh: 100 }), // same value — 0 kWh
+      makeReading({ reading_date: '2024-02-01', reading_kwh: 100 }), // same — 0 kWh
       makeReading({ reading_date: '2024-03-01', reading_kwh: 150 }),
     ]
     const tariffs = [makeTariff({ unit_rate: 30, standing_charge: 60, valid_from: '2024-01-01' })]
@@ -114,6 +172,22 @@ describe('buildMonthlyBreakdown', () => {
     ]
     // Tariff expired before the period — no match
     expect(buildMonthlyBreakdown(readings, tariffs, 'electricity')).toEqual([])
+  })
+
+  it('applies m³ → kWh conversion for gas readings', () => {
+    // 10 m³ used over 31 days (Jan 1 → Feb 1). standing_charge = 0 so days don't affect cost.
+    // Converted kWh = 10 × GAS_M3_TO_KWH.  Cost = converted_kWh × 10 / 100.
+    const readings = [
+      makeReading({ fuel_type: 'gas', reading_date: '2024-01-01', reading_kwh: 0 }),
+      makeReading({ fuel_type: 'gas', reading_date: '2024-02-01', reading_kwh: 10 }),
+    ]
+    const tariffs = [makeTariff({ fuel_type: 'gas', unit_rate: 10, standing_charge: 0, valid_from: '2024-01-01' })]
+
+    const result = buildMonthlyBreakdown(readings, tariffs, 'gas')
+    expect(result).toHaveLength(1)
+    expect(result[0].kwh).toBeCloseTo(10 * GAS_M3_TO_KWH)
+    expect(result[0].costGbp).toBeCloseTo((10 * GAS_M3_TO_KWH * 10) / 100)
+    expect(result[0].estimated).toBeFalsy()
   })
 
   it('sorts results by month ascending', () => {
