@@ -6,10 +6,10 @@ A Progressive Web App (PWA) for tracking household electricity and gas costs. Us
 ## Stack
 | Concern | Technology |
 |---|---|
-| Framework | Next.js 15 (App Router) + TypeScript |
+| Framework | Next.js 16.2.7 (App Router) + TypeScript, React 19 |
 | Styling | Tailwind CSS v4 |
 | Charts | Recharts |
-| Forms | React Hook Form + Zod |
+| Forms | React Hook Form (native validation — no zodResolver) |
 | Auth | Supabase Auth (Google OAuth) |
 | Database | Supabase (Postgres) with Row Level Security |
 | Hosting | Vercel |
@@ -51,18 +51,20 @@ src/
 │   │   ├── UsageChart.tsx      # Recharts BarChart: last 12 months kWh grouped (elec + gas)
 │   │   └── MonthBreakdown.tsx  # table: Month | Elec kWh | Elec £ | Gas kWh | Gas £ | Total £
 │   ├── tariffs/
-│   │   ├── TariffForm.tsx      # add tariff form; auto-closes previous active tariff
-│   │   └── TariffHistory.tsx   # table of tariffs; "Active" badge on current row
+│   │   ├── TariffForm.tsx      # add/edit tariff; Dual inserts two rows (electricity + gas)
+│   │   ├── TariffHistory.tsx   # table of tariffs; "Active" badge on current row
+│   │   └── TariffPanel.tsx     # client component: add/edit/delete state + router.refresh()
 │   └── readings/
 │       ├── ReadingForm.tsx     # add cumulative meter reading
-│       └── ReadingsList.tsx    # readings list with delta kWh between entries
+│       ├── ReadingsList.tsx    # readings list with delta kWh between entries
+│       └── ReadingsPanel.tsx   # client component: Electricity/Gas tab state
 ├── lib/
 │   ├── supabase/
 │   │   ├── client.ts           # browser Supabase client (singleton)
 │   │   └── server.ts           # server Supabase client (uses cookies)
 │   └── calculations.ts         # buildMonthlyBreakdown() — core cost/usage engine
 ├── types/index.ts              # Tariff, MeterReading, MonthlyPeriod types
-├── middleware.ts               # redirect unauthenticated users to /login
+├── proxy.ts                    # redirect unauthenticated users to /login (Next.js 16 uses proxy.ts, export named `proxy`)
 └── test/setup.ts               # Vitest + Testing Library setup
 ```
 
@@ -116,12 +118,31 @@ Migration file: `supabase/migrations/001_initial.sql`
 2. Supabase `signInWithOAuth` redirects to Google
 3. Google redirects to `/auth/callback`
 4. `/auth/callback/route.ts` exchanges code for session via `supabase.auth.exchangeCodeForSession()`
-5. Middleware in `src/middleware.ts` checks session on every request; unauthenticated → `/login`
+5. `src/proxy.ts` checks session on every request; unauthenticated → `/login` (Next.js 16 renamed middleware.ts → proxy.ts; export must be named `proxy`)
 
 ## Tariff Rules
 - Only one tariff per fuel type can be "active" (valid_to = NULL) at a time
 - Adding a new tariff for a fuel type automatically sets `valid_to = newTariff.valid_from - 1 day` on the previous active tariff
 - Historical tariffs are never deleted — they are needed to calculate past costs accurately
+
+### Dual Tariff (UI concept only)
+The form offers Dual / Electricity / Gas. "Dual" is **not** stored in the DB — the DB `CHECK` constraint only allows `'electricity'` or `'gas'`. Selecting Dual inserts **two separate rows** (one per fuel type), which may have different unit rates and standing charges. The DB schema does not need changing for this.
+
+## Forms Pattern
+We use **native React Hook Form validation only** — `zodResolver` is not used because it is incompatible with Zod v4 at runtime.
+
+Key pattern for numeric fields:
+```tsx
+{...register('field', {
+  valueAsNumber: true,
+  validate: (v: number) => (!isNaN(v) && v > 0) || 'Must be greater than 0',
+})}
+```
+`valueAsNumber: true` returns `NaN` for empty inputs — always guard with `!isNaN(v)`. Zod (`z`) is still installed and used **only in unit tests** for schema validation, not in form components.
+
+## Windows / Tooling Notes
+- **Platform**: Windows 11, PowerShell. Use the PowerShell tool for all file and shell operations. The Bash tool runs `/usr/bin/bash` and is not appropriate for Windows paths.
+- **gh CLI**: Installed at `C:\Program Files\GitHub CLI\gh.exe` (not on PATH). Always use the full path: `& "C:\Program Files\GitHub CLI\gh.exe" ...`
 
 ## Testing
 ```bash
