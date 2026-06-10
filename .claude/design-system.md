@@ -55,3 +55,8 @@ Import from `src/lib/chart-colors.ts`:
 CHART_COLORS.electricity  // '#fbbf24' amber-400
 CHART_COLORS.gas          // '#60a5fa' blue-400
 ```
+
+## Loading states
+- Reuse `src/components/ui/Skeleton.tsx` (`animate-pulse rounded-lg bg-gray-200`, aria-hidden) — never hand-roll pulse divs; size via `className`.
+- Every data-fetching route has a `loading.tsx` mirroring its page's wrapper classes (no layout shift). See `src/app/*/loading.tsx`.
+- Nav pending feedback: `useLinkStatus()` in `MobileNav.tsx` (`animate-pulse opacity-60` while navigating).

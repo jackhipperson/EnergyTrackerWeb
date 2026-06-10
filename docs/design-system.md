@@ -244,6 +244,32 @@ export const CHART_COLORS = {
 } as const
 ```
 
+### Skeleton / loading states
+
+Use the shared primitive `src/components/ui/Skeleton.tsx` for all loading placeholders —
+never hand-roll `animate-pulse` divs:
+
+```tsx
+import { Skeleton } from '@/components/ui/Skeleton'
+
+<Skeleton className="h-8 w-40" />                 // heading placeholder
+<Skeleton className="h-[260px] w-full" />          // chart placeholder
+<Skeleton className="min-h-[44px] w-full rounded-xl" />  // button placeholder
+```
+
+- Base style: `animate-pulse rounded-lg bg-gray-200`, `aria-hidden="true"`. Pass sizing
+  (and radius overrides like `rounded-xl`/`rounded-2xl`) via `className`.
+- On tinted fuel surfaces, override the fill to match: `bg-amber-100` on amber-50 tiles,
+  `bg-blue-100` on blue-50 tiles.
+- Every data-fetching route gets a `loading.tsx` (App Router streams it instantly on
+  navigation). It must reuse the page's exact wrapper classes so content swaps in with
+  zero layout shift. Examples: `src/app/dashboard/loading.tsx`, `src/app/tariffs/loading.tsx`,
+  `src/app/readings/loading.tsx`.
+- Under `prefers-reduced-motion` the pulse is suppressed globally — skeletons degrade to
+  static gray blocks, which is the intended accessible behaviour.
+- In-flight navigation feedback on the bottom nav uses `useLinkStatus()` from `next/link`
+  (see `MobileNav.tsx` — pending items get `animate-pulse opacity-60`).
+
 ### Mobile nav
 
 - Fixed bottom, `z-50`, `bg-white border-t border-gray-200`
