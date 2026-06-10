@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" className={`${geist.variable} h-full`}>
-      <body className="h-full font-sans antialiased bg-gray-50 text-gray-900">
+      <body className="h-full font-sans antialiased bg-gray-50">
         {user && (
           <div className="bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between">
             <span className="text-xs text-gray-400 truncate">{user.email}</span>

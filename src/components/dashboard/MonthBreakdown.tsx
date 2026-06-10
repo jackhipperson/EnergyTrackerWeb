@@ -23,7 +23,7 @@ function daysInMonth(month: string): number {
 
 export function MonthBreakdown({ data }: Props) {
   if (data.length === 0) {
-    return <p className="text-sm text-gray-400 py-4 text-center">No data yet.</p>
+    return <p className="text-sm text-gray-500 py-4 text-center">No data yet.</p>
   }
 
   const rows = [...data].reverse()
