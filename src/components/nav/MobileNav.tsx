@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { useLinkStatus } from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const links = [
@@ -33,22 +33,33 @@ function MeterIcon({ active }: { active: boolean }) {
   )
 }
 
+// Rendered inside <Link> so useLinkStatus can report the in-flight navigation;
+// pulses the tapped item while the next route's server component loads.
+function NavItemContent({ label, icon: Icon, active }: { label: string; icon: (props: { active: boolean }) => React.ReactNode; active: boolean }) {
+  const { pending } = useLinkStatus()
+  return (
+    <span className={`flex flex-col items-center gap-1 ${pending ? 'animate-pulse opacity-60' : ''}`}>
+      <Icon active={active} />
+      {label}
+    </span>
+  )
+}
+
 export function MobileNav() {
   const pathname = usePathname()
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-inset-bottom">
       <div className="flex">
-        {links.map(({ href, label, icon: Icon }) => {
+        {links.map(({ href, label, icon }) => {
           const active = pathname.startsWith(href)
           return (
             <Link
               key={href}
               href={href}
-              className={`flex-1 flex flex-col items-center py-3 gap-1 text-xs font-medium transition-colors ${active ? 'text-green-600' : 'text-gray-500'}`}
+              className={`flex-1 flex flex-col items-center py-3 text-xs font-medium transition-colors ${active ? 'text-green-600' : 'text-gray-500'}`}
             >
-              <Icon active={active} />
-              {label}
+              <NavItemContent label={label} icon={icon} active={active} />
             </Link>
           )
         })}
