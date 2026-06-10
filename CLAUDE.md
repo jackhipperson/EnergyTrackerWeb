@@ -40,12 +40,12 @@ src/
 │   ├── page.tsx                # root redirect → /dashboard or /login
 │   ├── login/page.tsx          # Google sign-in button
 │   ├── auth/callback/route.ts  # Supabase OAuth exchange handler
-│   ├── dashboard/page.tsx      # dashboard: charts + monthly table
-│   ├── tariffs/page.tsx        # tariff CRUD with history
-│   └── readings/page.tsx       # meter reading log
+│   ├── dashboard/              # page.tsx (charts + monthly table) + loading.tsx skeleton
+│   ├── tariffs/                # page.tsx (tariff CRUD with history) + loading.tsx skeleton
+│   └── readings/               # page.tsx (meter reading log) + loading.tsx skeleton
 ├── components/
-│   ├── ui/                     # shadcn primitives (Button, Card, Table, etc.)
-│   ├── nav/MobileNav.tsx       # fixed bottom nav bar (Dashboard | Tariffs | Readings)
+│   ├── ui/                     # shared primitives (ConfirmDialog, Skeleton)
+│   ├── nav/MobileNav.tsx       # fixed bottom nav bar; useLinkStatus pending pulse
 │   ├── dashboard/
 │   │   ├── CostChart.tsx       # Recharts BarChart: last 12 months stacked cost (elec + gas)
 │   │   ├── UsageChart.tsx      # Recharts BarChart: last 12 months kWh grouped (elec + gas)
@@ -62,11 +62,24 @@ src/
 │   ├── supabase/
 │   │   ├── client.ts           # browser Supabase client (singleton)
 │   │   └── server.ts           # server Supabase client (uses cookies)
-│   └── calculations.ts         # buildMonthlyBreakdown() — core cost/usage engine
+│   ├── calculations.ts         # buildMonthlyBreakdown() — core cost/usage engine
+│   └── chart-colors.ts         # CHART_COLORS — single source of truth for fuel chart fills
 ├── types/index.ts              # Tariff, MeterReading, MonthlyPeriod types
 ├── proxy.ts                    # redirect unauthenticated users to /login (Next.js 16 uses proxy.ts, export named `proxy`)
 └── test/setup.ts               # Vitest + Testing Library setup
 ```
+Also: `docs/design-system.md` (full design system reference) and `.claude/agents/` (project subagents — see below).
+
+## Design System
+The UI follows a documented design system:
+- `docs/design-system.md` — full reference: tokens, contrast ratios, component conventions, accessibility baseline
+- `.claude/design-system.md` — compact summary; the ui-ux-expert agent reads this first on every invocation
+
+Hard rules:
+- **Chart colours** come only from `src/lib/chart-colors.ts` (drift-protected by unit tests) — never hardcode hex fills in chart components
+- **Loading placeholders** use only `src/components/ui/Skeleton.tsx` — never hand-roll `animate-pulse` divs
+- **Every data-fetching route gets a `loading.tsx`** mirroring its page's wrapper classes, so the App Router streams instant loading UI with zero layout shift (see `src/app/*/loading.tsx`)
+- Tailwind v4 theme tokens live in the `@theme` block in `src/app/globals.css` (CSS-first config — there is no `tailwind.config.js` theme)
 
 ## Database Schema
 ```sql
@@ -143,6 +156,7 @@ Key pattern for numeric fields:
 ## Windows / Tooling Notes
 - **Platform**: Windows 11, PowerShell. Use the PowerShell tool for all file and shell operations. The Bash tool runs `/usr/bin/bash` and is not appropriate for Windows paths.
 - **gh CLI**: Installed at `C:\Program Files\GitHub CLI\gh.exe` (not on PATH). Always use the full path: `& "C:\Program Files\GitHub CLI\gh.exe" ...`
+- **Multi-line `gh` bodies** (PR/issue descriptions): inline PowerShell here-strings are fragile — write the body to `.git\PR_BODY.md`, pass `--body-file .git\PR_BODY.md`, delete the file afterwards.
 
 ## Testing
 ```bash
@@ -152,10 +166,22 @@ npm run test        # watch mode for development
 
 Tests live alongside source in `__tests__/` subdirectories or `.test.ts` files.
 
+**Testing workflow:** after meaningful code changes, delegate verification to the **tester agent** (`.claude/agents/tester.md`) rather than running the suite inline — it runs the tests, diagnoses failures, writes missing coverage, and amends tests for intentional behaviour changes. The PostToolUse hook still runs the suite mechanically after each edit as a cheap safety net.
+
 Priority for unit testing:
 1. `src/lib/calculations.ts` — test with known input/output pairs
 2. Tariff form validation (Zod schemas)
 3. Delta kWh display logic in `ReadingsList`
+
+## Project Agents (`.claude/agents/`)
+Four project-scoped subagents, versioned in the repo:
+
+| Agent | Role |
+|---|---|
+| `tester` | Owns test verification — run after code changes (see Testing workflow above) |
+| `code-reviewer` | Code quality review after features/refactors/fixes |
+| `security-auditor` | Pre-commit/PR scan for secrets, auth gaps, vulnerable deps |
+| `ui-ux-expert` | Design system enforcement + UI/styling fixes — reads `.claude/design-system.md` first |
 
 ## Subagents (Automated Hooks)
 
@@ -172,6 +198,8 @@ After Claude finishes each turn, runs:
 node .claude/scripts/update-readme.js
 ```
 This script uses the Anthropic SDK to inspect recent git changes and update the relevant sections of `README.md` (features list, setup instructions, schema). See `.claude/scripts/update-readme.js` for implementation details.
+
+Requires `ANTHROPIC_API_KEY` in the environment; if the key is absent the script **skips silently** (no error noise on commit). When it skips, update `README.md` manually as part of the PR when features change.
 
 To disable a hook temporarily, comment it out in `.claude/settings.json`.
 

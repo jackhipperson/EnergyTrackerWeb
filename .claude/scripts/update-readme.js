@@ -26,6 +26,10 @@ function shouldUpdate(changedFiles) {
 }
 
 async function updateReadme() {
+  // No API key available (e.g. running outside Claude Code) — skip silently
+  // rather than erroring on every commit. Update README manually in the PR.
+  if (!process.env.ANTHROPIC_API_KEY) return
+
   const changedFiles = getStagedFiles()
   if (!shouldUpdate(changedFiles)) return
 
