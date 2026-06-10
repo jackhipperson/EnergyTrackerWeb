@@ -10,7 +10,13 @@ A Progressive Web App for tracking household electricity and gas costs over time
 - Installable on mobile as a PWA (Add to Home Screen)
 
 ## Tech Stack
-Next.js 15 · TypeScript · Tailwind CSS · Recharts · Supabase (Postgres + Auth) · Vercel
+Next.js 16 · TypeScript · Tailwind CSS v4 · Recharts · Supabase (Postgres + Auth) · Vercel
+
+## Design System
+The UI follows a documented design system — see [`docs/design-system.md`](docs/design-system.md).
+- Tailwind v4 theme tokens defined in `src/app/globals.css` (`@theme` block): colors, typography, spacing, radius, shadows
+- Semantic fuel colors: electricity = amber, gas = blue — light `*-400` fills for charts, darker `*-700` for text (WCAG AA)
+- Chart colors live in `src/lib/chart-colors.ts` (single source of truth, guarded by unit tests)
 
 ## Setup
 

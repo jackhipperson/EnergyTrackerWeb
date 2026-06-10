@@ -17,7 +17,7 @@ const fuelBadge: Record<string, { label: string; className: string }> = {
 
 export function TariffHistory({ tariffs, onEdit, onDelete }: Props) {
   if (tariffs.length === 0) {
-    return <p className="text-sm text-gray-400 py-4 text-center">No tariffs added yet.</p>
+    return <p className="text-sm text-gray-500 py-4 text-center">No tariffs added yet.</p>
   }
 
   const sorted = [...tariffs].sort((a, b) => b.valid_from.localeCompare(a.valid_from))

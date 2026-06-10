@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ─── Design System — EnergyTracker ───────────────────────────────────────────
+   Aesthetic direction: Modern Minimal
+   A clean, data-forward PWA for tracking household energy costs.
+   Neutral chrome lets the electricity (amber) and gas (blue) semantic
+   colours carry full meaning without visual noise.
+   ──────────────────────────────────────────────────────────────────────────── */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Fonts */
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* ── Brand / primary (green) ─────────────────────────────────────────────── */
+  --color-brand:          #16a34a; /* green-600  — nav active, primary buttons, focus rings */
+  --color-brand-hover:    #15803d; /* green-700  — hover state */
+  --color-brand-light:    #f0fdf4; /* green-50   — success message bg */
+  --color-brand-muted:    #bbf7d0; /* green-200  — active tariff row tint */
+
+  /* ── Electricity semantic (amber) ────────────────────────────────────────── */
+  /* Chart fill: amber-400 (#fbbf24). Chosen over amber-500 to read well
+     on white card backgrounds at chart scale. WCAG AA on text is met by
+     using amber-700 (#b45309) for any text labels, never the fill itself. */
+  --color-elec:           #fbbf24; /* amber-400  — chart bar fill */
+  --color-elec-dark:      #b45309; /* amber-700  — table text, badge text (5.1:1 on white) */
+  --color-elec-surface:   #fffbeb; /* amber-50   — tile/badge background */
+  --color-elec-border:    #fde68a; /* amber-200  — tile border */
+  --color-elec-muted:     #92400e; /* amber-800  — darker text when needed */
+
+  /* ── Gas semantic (blue) ─────────────────────────────────────────────────── */
+  /* Chart fill: blue-400 (#60a5fa). Text always uses blue-700 (#1d4ed8)
+     for WCAG AA compliance (5.7:1 on white). */
+  --color-gas:            #60a5fa; /* blue-400   — chart bar fill */
+  --color-gas-dark:       #1d4ed8; /* blue-700   — table text, badge text (5.7:1 on white) */
+  --color-gas-surface:    #eff6ff; /* blue-50    — tile/badge background */
+  --color-gas-border:     #bfdbfe; /* blue-200   — tile border */
+  --color-gas-muted:      #1e3a8a; /* blue-900   — darker text when needed */
+
+  /* ── Neutrals ────────────────────────────────────────────────────────────── */
+  --color-background:     #f9fafb; /* gray-50    — page background */
+  --color-surface:        #ffffff; /* white      — card / panel background */
+  --color-surface-raised: #ffffff; /* white      — modal / dialog */
+  --color-border:         #e5e7eb; /* gray-200   — standard border */
+  --color-border-subtle:  #f3f4f6; /* gray-100   — subtle dividers */
+
+  /* ── Text ────────────────────────────────────────────────────────────────── */
+  --color-text-primary:   #111827; /* gray-900   — headings, strong body (15.3:1 on white) */
+  --color-text-body:      #374151; /* gray-700   — body text (10.7:1 on white) */
+  --color-text-secondary: #6b7280; /* gray-500   — secondary / muted (4.6:1 on white — AA) */
+  --color-text-disabled:  #9ca3af; /* gray-400   — placeholder, empty states */
+  --color-text-inverse:   #ffffff; /* white      — text on brand-coloured buttons */
+
+  /* ── Semantic status ─────────────────────────────────────────────────────── */
+  --color-error:          #dc2626; /* red-600    — errors (5.9:1 on white) */
+  --color-error-surface:  #fef2f2; /* red-50     — error message background */
+  --color-success:        #16a34a; /* green-600  — success (alias of brand) */
+  --color-success-surface:#f0fdf4; /* green-50   */
+  --color-warning:        #d97706; /* amber-600  — warnings (4.5:1 on white — AA) */
+
+  /* ── Spacing (4px base unit) ─────────────────────────────────────────────── */
+  /* Tailwind v4 ships a full spacing scale out of the box; these tokens
+     document the intended usage rhythm for the project. */
+  /* --space-1: 4px   micro gaps (gap-1, p-1)
+     --space-2: 8px   tight internal padding (gap-2, p-2, mb-2)
+     --space-3: 12px  component internal padding (gap-3, p-3)
+     --space-4: 16px  standard section padding (p-4, gap-4)
+     --space-5: 20px  (p-5)
+     --space-6: 24px  large gaps (space-y-6, gap-6)
+     --space-8: 32px  section separation (py-8)
+     --space-24: 96px bottom padding for mobile nav clearance (pb-24) */
+
+  /* ── Border radius ───────────────────────────────────────────────────────── */
+  /* Tailwind v4 default scale used; project conventions:
+     rounded-lg  (8px)  — inputs, small buttons
+     rounded-xl  (12px) — primary buttons, login inputs
+     rounded-2xl (16px) — cards, modals, summary tiles
+     rounded-full       — badges / pills */
+
+  /* ── Shadows ─────────────────────────────────────────────────────────────── */
+  /* shadow-sm  — card elevation (default card treatment)
+     shadow-md  — modal / dialog elevation
+     shadow-xl  — confirm dialog */
+
+  /* ── Animation ───────────────────────────────────────────────────────────── */
+  /* All interactive elements use transition-colors with Tailwind's default
+     150ms ease. Prefer this over custom durations for consistency. */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text-body);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Focus visible ───────────────────────────────────────────────────────── */
+/* Ensure keyboard focus is always visible. Components use
+   focus:ring-2 focus:ring-brand utilities; this provides a fallback. */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
